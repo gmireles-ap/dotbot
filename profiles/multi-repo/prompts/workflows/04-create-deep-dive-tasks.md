@@ -1,0 +1,149 @@
+---
+name: Create Deep Dive Tasks
+description: Parse 02_REPOS_AFFECTED.md and create per-repo deep dive tasks for MEDIUM+ impact repos
+version: 1.0
+---
+
+# Create Deep Dive Tasks
+
+This workflow runs after the foundational research (Phase 1) completes. It reads the repo impact inventory, filters to repos that need deep analysis, and creates one task per repo.
+
+## Prerequisites
+
+- Phase 1 research must be complete — `02_REPOS_AFFECTED.md` must exist
+- `initiative.md` must exist for Jira key and initiative context
+
+## Your Task
+
+### Step 1: Read Source Documents
+
+```
+read_files({ files: [
+  { path: ".bot/workspace/product/briefing/02_REPOS_AFFECTED.md" },
+  { path: ".bot/workspace/product/briefing/initiative.md" }
+]})
+```
+
+### Step 2: Parse Repo Tables
+
+Parse the tier tables from `02_REPOS_AFFECTED.md`. Each tier section contains a table with columns:
+
+| Repo | Project | Purpose | Impact |
+|------|---------|---------|--------|
+
+Extract for each row:
+- **Repo** — the repository name
+- **Project** — the Azure DevOps project
+- **Purpose** — what the repo does
+- **Impact** — HIGH, MEDIUM, LOW, or LOW-MEDIUM
+
+### Step 3: Filter MEDIUM+ Repos
+
+Select only repos with impact **MEDIUM** or **HIGH**. These are the repos that need detailed deep dive analysis.
+
+Order by:
+1. Tier (lower tier = higher priority)
+2. Impact (HIGH before MEDIUM)
+
+### Step 4: Create Tasks
+
+Use `task_create_bulk` to create one task per filtered repo:
+
+```
+mcp__dotbot__task_create_bulk({
+  tasks: [
+    // For each MEDIUM+ repo:
+    {
+      "name": "Deep dive: {RepoName}",
+      "description": "Conduct a thorough code-level analysis of the {RepoName} repository. Clone the repo, analyse source code, database scripts, configuration, and tests. Produce a structured deep-dive report.\n\nTier: {TIER}\nImpact: {IMPACT}\nProject: {PROJECT}\nPurpose: {PURPOSE}\n\nOutput: .bot/workspace/product/briefing/repos/{RepoName}.md",
+      "category": "research",
+      "effort": "{EFFORT_BASED_ON_IMPACT}",
+      "priority": "{PRIORITY_BASED_ON_ORDER}",
+      "dependencies": [],
+      "research_prompt": "repo-deep-dive.md",
+      "external_repo": {
+        "project": "{PROJECT}",
+        "repo": "{RepoName}"
+      },
+      "tier": {TIER_NUMBER},
+      "impact": "{IMPACT}",
+      "working_dir": "repos/{RepoName}",
+      "acceptance_criteria": [
+        "Repo cloned to repos/{RepoName}/ on initiative branch",
+        "Deep dive report written to briefing/repos/{RepoName}.md",
+        "Reference implementation file inventory complete",
+        "Files requiring changes identified with change types",
+        "New files needed listed with proposed paths",
+        "Database impact assessed",
+        "Effort estimated with T-shirt sizes",
+        "Risk flags and open questions documented"
+      ],
+      "steps": [
+        "Clone repo using repo_clone MCP tool (project: {PROJECT}, repo: {RepoName})",
+        "Read initiative.md and prior research documents for context",
+        "Read this repo's entry from 02_REPOS_AFFECTED.md for tier/impact context",
+        "Analyse repo structure and orientation",
+        "Map reference implementation files",
+        "Identify entity-specific code paths",
+        "Assess configuration-driven vs code-driven areas",
+        "Analyse database impact",
+        "Review API contracts and test coverage",
+        "Identify dependencies on other repos",
+        "Write structured deep-dive report to briefing/repos/{RepoName}.md",
+        "Create per-repo workspace: repos/{RepoName}/.bot/workspace/{product,tasks}/"
+      ],
+      "applicable_standards": [".bot/prompts/standards/global/research-output.md"],
+      "applicable_agents": [".bot/prompts/agents/researcher/AGENT.md"]
+    }
+  ]
+})
+```
+
+### Effort Estimation Rules
+
+| Impact | Default Effort |
+|--------|---------------|
+| HIGH   | L             |
+| MEDIUM | M             |
+
+### Priority Assignment
+
+Assign priorities sequentially starting from 10 (to leave room after the foundational research tasks at priority 1-3):
+- Tier 1 HIGH repos: priority 10-19
+- Tier 1 MEDIUM repos: priority 20-29
+- Tier 2 HIGH repos: priority 30-39
+- And so on...
+
+### Step 5: Verify Creation
+
+After `task_create_bulk` returns, verify:
+1. All tasks created successfully
+2. Each task has `research_prompt: "repo-deep-dive.md"`
+3. Each task has `external_repo` with project and repo name
+4. Each task has `tier` and `impact` fields
+5. Each task has `working_dir` pointing to its clone path
+
+Report the result:
+- Total repos found in `02_REPOS_AFFECTED.md`
+- Repos filtered (MEDIUM+)
+- Tasks created
+- Repos skipped (LOW/LOW-MEDIUM impact)
+
+## Output
+
+One task per MEDIUM+ impact repo in `.bot/workspace/tasks/todo/`, each with:
+- `category: "research"`
+- `research_prompt: "repo-deep-dive.md"`
+- `external_repo: { project, repo }`
+- `tier` and `impact` fields
+- `working_dir` pointing to clone path
+
+## Critical Rules
+
+- Parse tables carefully — handle variations in whitespace and formatting
+- Only create tasks for MEDIUM and HIGH impact repos
+- Skip LOW and LOW-MEDIUM repos (they can be assessed later if needed)
+- Include the ADO project name from the table (needed for `repo_clone`)
+- Do NOT clone repos — task execution will handle cloning
+- Do NOT execute deep dives — only create the tasks
+- If `02_REPOS_AFFECTED.md` contains no MEDIUM+ repos, report that and create zero tasks
