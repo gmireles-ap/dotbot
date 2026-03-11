@@ -58,8 +58,12 @@ param(
     [switch]$NeedsInterview,
     [switch]$AutoWorkflow,
     [switch]$NoWait,
-    [string]$FromPhase
+    [string]$FromPhase,
+    [string]$SkipPhases  # comma-separated phase IDs to skip
 )
+
+# Parse skip phases
+$skipPhaseIds = if ($SkipPhases) { $SkipPhases -split ',' } else { @() }
 
 # --- Configuration ---
 
@@ -500,6 +504,7 @@ $processData = @{
     workflow        = $null
     description     = $Description
     phases          = @()
+    skip_phases     = $skipPhaseIds
 }
 
 Write-ProcessFile -Id $procId -Data $processData
@@ -2206,6 +2211,18 @@ An interview-summary.md file exists in .bot/workspace/product/ containing the us
                         $phaseNum++; continue
                     }
                 }
+            }
+
+            # --- User-requested skip ---
+            if ($phase.id -in $skipPhaseIds) {
+                if ($trackIdx -ge 0) {
+                    $processData.phases[$trackIdx].status = 'skipped'
+                    $processData.phases[$trackIdx].completed_at = (Get-Date).ToUniversalTime().ToString("o")
+                    Write-ProcessFile -Id $procId -Data $processData
+                }
+                Write-ProcessActivity -Id $procId -ActivityType "text" -Message "Skipping phase $phaseNum ($phaseName): user opted out"
+                Write-Status "Skipping phase $phaseNum ($phaseName) — user opted out" -Type Info
+                $phaseNum++; continue
             }
 
             # Determine phase type
