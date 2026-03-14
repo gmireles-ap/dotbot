@@ -19,6 +19,8 @@ The final phase of the multi-repo initiative lifecycle. For each affected repo, 
 - `.env.local` must have valid AZURE_DEVOPS_PAT
 - `az` CLI must be available for PR creation
 
+> **Heartbeat:** This phase can run 15-30 minutes. Call `steering_heartbeat` with a status update every 5 minutes to keep the dashboard informed.
+
 ## Your Task
 
 ### Step 1: Read Context
