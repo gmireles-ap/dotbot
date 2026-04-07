@@ -190,35 +190,20 @@ async function updateProductFileNav() {
         }
 
         // Build and render tree
-        const tree = buildProductTree(docs);
+        const tree = buildFolderTree(docs, 'filename');
         container.innerHTML = renderProductTree(tree);
 
         container.dataset.loaded = 'true';
 
-        // Attach folder toggle handlers
-        container.querySelectorAll('.chain-folder-header').forEach(header => {
-            header.addEventListener('click', () => {
-                const folder = header.closest('.chain-folder');
-                folder.classList.toggle('collapsed');
-                const toggle = header.querySelector('.folder-toggle');
-                if (toggle) toggle.innerHTML = folder.classList.contains('collapsed') ? '&#x25B6;' : '&#x25BC;';
-            });
-        });
+        // Attach folder toggle handlers (shared utility)
+        attachFolderToggleHandlers(container);
 
         // Attach file click handlers
         container.querySelectorAll('.file-nav-item').forEach(item => {
             item.addEventListener('click', () => {
                 container.querySelectorAll('.file-nav-item').forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
-                if (item.dataset.type === 'binary') {
-                    showBinaryPlaceholder({
-                        name: item.dataset.doc,
-                        filename: item.dataset.filename,
-                        size: parseInt(item.dataset.size, 10) || 0
-                    });
-                } else {
-                    loadProductDoc(item.dataset.doc);
-                }
+                activateProductItem(item);
             });
         });
 
@@ -226,15 +211,7 @@ async function updateProductFileNav() {
         const firstItem = container.querySelector('.file-nav-item');
         if (firstItem) {
             firstItem.classList.add('active');
-            if (firstItem.dataset.type === 'binary') {
-                showBinaryPlaceholder({
-                    name: firstItem.dataset.doc,
-                    filename: firstItem.dataset.filename,
-                    size: parseInt(firstItem.dataset.size, 10) || 0
-                });
-            } else {
-                loadProductDoc(firstItem.dataset.doc);
-            }
+            activateProductItem(firstItem);
         }
     } catch (error) {
         console.error('Failed to load product file nav:', error);
