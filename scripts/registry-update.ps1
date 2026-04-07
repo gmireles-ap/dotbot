@@ -178,6 +178,8 @@ foreach ($entry in $targets) {
         continue
     }
 
+    $entrySucceeded = $false
+
     if ($entry.type -eq 'local') {
         # Local: symlink/junction is always current — just re-validate
         Write-Status "Local registry — re-validating (symlink tracks source automatically)"
@@ -187,6 +189,7 @@ foreach ($entry in $targets) {
         } else {
             Write-Success "Registry '$entryName' is valid"
             $updatedCount++
+            $entrySucceeded = $true
         }
 
     } else {
@@ -251,16 +254,19 @@ foreach ($entry in $targets) {
             $failedCount++
         } else {
             $updatedCount++
+            $entrySucceeded = $true
         }
     }
 
-    # Record updated_at in registries.json
-    $config.registries = @($config.registries | ForEach-Object {
-        if ($_.name -eq $entryName) {
-            $_ | Add-Member -NotePropertyName 'updated_at' -NotePropertyValue (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ") -Force
-        }
-        $_
-    })
+    # Record updated_at only when the update and validation both succeeded
+    if ($entrySucceeded) {
+        $config.registries = @($config.registries | ForEach-Object {
+            if ($_.name -eq $entryName) {
+                $_ | Add-Member -NotePropertyName 'updated_at' -NotePropertyValue ((Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")) -Force
+            }
+            $_
+        })
+    }
 
     Write-BlankLine
 }
