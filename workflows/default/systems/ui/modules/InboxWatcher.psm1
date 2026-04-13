@@ -210,8 +210,25 @@ function Initialize-InboxWatcher {
                     return
                 }
 
-                $launchArgs  = @("-File", $launcherPath, "-Type", "task-creation", "-Prompt", $contextPrompt, "-Description", $description)
-                $startParams = @{ ArgumentList = $launchArgs; PassThru = $true }
+                # Write the prompt to a temp file and invoke via a wrapper script so the
+                # long prompt string never touches the command line — the same pattern
+                # used by ProductAPI.psm1.  Passing -Prompt directly through
+                # Start-Process -ArgumentList breaks on Windows because PS 7.x does not
+                # reliably quote array elements that contain spaces.
+                $launchersDir = Join-Path $BotRoot ".control" "launchers"
+                $null         = New-Item -ItemType Directory -Force -Path $launchersDir -ErrorAction SilentlyContinue
+                $stamp        = [DateTime]::UtcNow.ToString("yyyyMMdd-HHmmss-fff")
+                $promptFile   = Join-Path $launchersDir "inbox-prompt-$stamp.txt"
+                $wrapperPath  = Join-Path $launchersDir "inbox-launcher-$stamp.ps1"
+
+                $contextPrompt | Set-Content -LiteralPath $promptFile -Encoding UTF8 -NoNewline
+                $escapedDesc = $description -replace "'", "''"
+                @"
+`$prompt = Get-Content -LiteralPath '$promptFile' -Raw
+& '$launcherPath' -Type task-creation -Prompt `$prompt -Description '$escapedDesc'
+"@ | Set-Content -LiteralPath $wrapperPath -Encoding UTF8
+
+                $startParams = @{ ArgumentList = @("-NoProfile", "-File", $wrapperPath); PassThru = $true }
                 if ($IsWindows) { $startParams.WindowStyle = 'Normal' }
 
                 Write-WorkerLog "Launching task-creation for $($pendingFiles.Count) file(s): $(($pendingFiles | ForEach-Object { $_.SafeName }) -join ', ')"
