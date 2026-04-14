@@ -32,10 +32,13 @@ Issue all ToolSearch calls above in a **single parallel batch**. Do not call Too
 
 ### Step 1: Read Source Documents
 
-Read all available source material:
+Read all available source material. The interview summary is **optional** — it only exists when the kickstart workflow ran in interview mode. If the file does not exist, skip it and continue with the other reads; do not treat the missing file as an error.
 
 ```
+# Optional — only present when an interview was run:
 Read({ file_path: ".bot/workspace/product/interview-summary.md" })
+
+# Always present after phase 1:
 Read({ file_path: ".bot/workspace/product/mission.md" })
 Read({ file_path: ".bot/workspace/product/tech-stack.md" })
 Read({ file_path: ".bot/workspace/product/entity-model.md" })
