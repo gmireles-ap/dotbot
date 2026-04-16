@@ -359,9 +359,9 @@ try {
     Assert-True -Name "TaskMutation does not define Get-TodoTaskRecord (delegated to TaskStore)" `
         -Condition (-not (Select-String -Path $taskMutationModule -Pattern 'function Get-TodoTaskRecord' -Quiet)) `
         -Message "Expected TaskMutation to delegate Get-TodoTaskRecord to TaskStore, not define it locally"
-    Assert-FileContains -Name "StateBuilder delegates roadmap dependency map to TaskMutation" `
-        -Path (Join-Path $botDir "systems\ui\modules\StateBuilder.psm1") `
-        -Pattern 'TaskMutation\\Get-RoadmapOverviewDependencyMap'
+    Assert-True -Name "StateBuilder does not define Get-RoadmapOverviewDependencyMap (uses TaskMutation's)" `
+        -Condition (-not (Select-String -Path (Join-Path $botDir "systems\ui\modules\StateBuilder.psm1") -Pattern 'function Get-RoadmapOverviewDependencyMap' -Quiet)) `
+        -Message "Expected StateBuilder to use TaskMutation's Get-RoadmapOverviewDependencyMap, not define it locally"
     Assert-FileContains -Name "TaskStore defines canonical Get-TaskSlug" `
         -Path $taskStoreModule `
         -Pattern 'function Get-TaskSlug'
