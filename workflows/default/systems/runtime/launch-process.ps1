@@ -290,8 +290,13 @@ if (-not (Acquire-ProcessLock -LockType $lockKey)) {
 $sessionId = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ")
 $claudeSessionId = New-ProviderSession
 
-# Set process ID and correlation ID env vars for structured logging
+# Set process ID and correlation ID env vars for structured logging.
+# DOTBOT_CURRENT_WORKFLOW is read by the MCP server's dispatcher to attribute
+# task_create / task_create_bulk calls originating from Claude, which cannot
+# reliably relay the workflow name itself. Always assign (even to empty) so a
+# stale value from an outer shell can't contaminate this process tree.
 $env:DOTBOT_PROCESS_ID = $procId
+$env:DOTBOT_CURRENT_WORKFLOW = if ($Workflow) { $Workflow } else { '' }
 if (-not $env:DOTBOT_CORRELATION_ID) {
     $env:DOTBOT_CORRELATION_ID = "corr-$([guid]::NewGuid().ToString().Substring(0,8))"
 }

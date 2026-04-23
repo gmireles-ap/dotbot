@@ -221,7 +221,26 @@ function Invoke-CallTool {
             $part.Substring(0,1).ToUpperInvariant() + $part.Substring(1)
         }
         $functionName = 'Invoke-' + ($capitalizedParts -join '')
-        
+
+        # Attribute anything created inside a workflow to that workflow. The
+        # runner publishes the name via $env:DOTBOT_CURRENT_WORKFLOW; Claude
+        # can't be trusted to relay it, so we merge it into the arguments here.
+        # An explicit 'workflow' arg from the caller always wins, so tools that
+        # receive the field from a deliberate caller are unaffected.
+        if ($env:DOTBOT_CURRENT_WORKFLOW) {
+            $wf = $env:DOTBOT_CURRENT_WORKFLOW
+            if (-not $Arguments.ContainsKey('workflow')) {
+                $Arguments['workflow'] = $wf
+            }
+            if ($Arguments.tasks -is [System.Collections.IList]) {
+                foreach ($t in $Arguments.tasks) {
+                    if ($t -is [System.Collections.IDictionary] -and -not $t.Contains('workflow')) {
+                        $t['workflow'] = $wf
+                    }
+                }
+            }
+        }
+
         # Call the tool function (tools can access $script:ProjectRoot directly)
         $result = & $functionName -Arguments $Arguments
         
