@@ -460,6 +460,7 @@ Remove-ProcessLock -LockType $lockKey
 $env:DOTBOT_PROCESS_ID = $null
 $env:DOTBOT_CURRENT_TASK_ID = $null
 $env:DOTBOT_CURRENT_PHASE = $null
+$env:DOTBOT_CURRENT_WORKFLOW = $null
 
 # Output process ID for caller to use
 Write-BotLog -Level Debug -Message ""
