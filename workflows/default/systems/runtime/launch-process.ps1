@@ -296,7 +296,7 @@ $claudeSessionId = New-ProviderSession
 # reliably relay the workflow name itself. Always assign (even to empty) so a
 # stale value from an outer shell can't contaminate this process tree.
 $env:DOTBOT_PROCESS_ID = $procId
-$env:DOTBOT_CURRENT_WORKFLOW = if ($Workflow) { $Workflow } else { '' }
+$env:DOTBOT_CURRENT_WORKFLOW = if ([string]::IsNullOrWhiteSpace($Workflow)) { '' } else { $Workflow.Trim() }
 if (-not $env:DOTBOT_CORRELATION_ID) {
     $env:DOTBOT_CORRELATION_ID = "corr-$([guid]::NewGuid().ToString().Substring(0,8))"
 }

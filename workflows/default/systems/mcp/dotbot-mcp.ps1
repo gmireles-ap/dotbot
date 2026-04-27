@@ -222,12 +222,16 @@ function Invoke-CallTool {
         }
         $functionName = 'Invoke-' + ($capitalizedParts -join '')
 
-        # Attribute anything created inside a workflow to that workflow. The
+        # Attribute tasks created inside a workflow to that workflow. The
         # runner publishes the name via $env:DOTBOT_CURRENT_WORKFLOW; Claude
         # can't be trusted to relay it, so we merge it into the arguments here.
-        # An explicit 'workflow' arg from the caller always wins, so tools that
-        # receive the field from a deliberate caller are unaffected.
-        if ($env:DOTBOT_CURRENT_WORKFLOW) {
+        # Scoped to an allowlist of task-creating tools so the env var doesn't
+        # contaminate unrelated tools' argument hashes. Both injection shapes
+        # (top-level field, per-task array element) run inside the guard; each
+        # is a no-op for tools that don't use that shape. An explicit 'workflow'
+        # arg from the caller always wins.
+        $workflowAttributedTools = @('task_create', 'task_create_bulk')
+        if ($env:DOTBOT_CURRENT_WORKFLOW -and $Name -in $workflowAttributedTools) {
             $wf = $env:DOTBOT_CURRENT_WORKFLOW
             if (-not $Arguments.ContainsKey('workflow')) {
                 $Arguments['workflow'] = $wf
