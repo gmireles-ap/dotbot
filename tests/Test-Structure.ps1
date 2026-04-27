@@ -369,16 +369,23 @@ if (-not $dotbotInstalled) {
         Assert-PathExists -Name "-Force: .control/settings.json preserved" -Path $dummySettings
         Assert-PathExists -Name "-Force: system files refreshed" -Path (Join-Path $botDir "core/mcp/dotbot-mcp.ps1")
 
-        # Regression guard: init --force must leave a clean .bot/ tree, else
-        # the next workflow run's integrity gate trips with "tampered".
-        Push-Location $testProject
-        try {
-            $dirtyAfterForce = & git status --porcelain -- .bot/ 2>$null
-            Assert-True -Name "-Force: clean working tree (no uncommitted .bot/ changes)" `
-                -Condition ([string]::IsNullOrWhiteSpace(($dirtyAfterForce -join "`n"))) `
-                -Message "init --force left uncommitted .bot/ changes:`n$($dirtyAfterForce -join "`n")"
-        } finally {
-            Pop-Location
+        # Regression guard: init --force must leave a clean framework tree,
+        # else the next workflow run's integrity gate trips with "tampered".
+        # Scope to the protected-paths list — workspace/ and .control/ hold
+        # user/runtime data the test deliberately seeds and aren't framework.
+        $integrityModule = Join-Path $dotbotDir "core/mcp/modules/FrameworkIntegrity.psm1"
+        if (Test-Path $integrityModule) {
+            Import-Module $integrityModule -Force
+            $protectedPaths = @(Get-FrameworkProtectedPaths)
+            Push-Location $testProject
+            try {
+                $dirtyFramework = & git status --porcelain -- @protectedPaths 2>$null
+                Assert-True -Name "-Force: clean framework tree (no uncommitted protected-path changes)" `
+                    -Condition ([string]::IsNullOrWhiteSpace(($dirtyFramework -join "`n"))) `
+                    -Message "init --force left uncommitted framework changes:`n$($dirtyFramework -join "`n")"
+            } finally {
+                Pop-Location
+            }
         }
 
         if ($initialInstanceId) {
