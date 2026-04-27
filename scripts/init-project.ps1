@@ -1263,7 +1263,15 @@ if ($LASTEXITCODE -ne 0) {
     # then commit framework paths + manifest if anything actually changed.
     New-FrameworkManifest -Root $ProjectDir -Generator 'dotbot init --force' -Paths $frameworkPaths
 
-    $stagePaths = $frameworkPaths + @('.bot/.manifest.json')
+    # Filter to paths that actually exist on disk — git add chokes on a single
+    # missing pathspec (`fatal: pathspec '...' did not match any files`) and
+    # aborts the entire stage operation, which then surfaces as a silent
+    # "Framework update commit failed" because `Submit-ForceCommit` runs git
+    # commit with nothing staged. Filtering here keeps a single stale entry
+    # in $script:ProtectedPaths from breaking init --force.
+    $stagePaths = @(($frameworkPaths + @('.bot/.manifest.json')) | Where-Object {
+        Test-Path -LiteralPath (Join-Path $ProjectDir $_)
+    })
     $dirty = git -C $ProjectDir status --porcelain -- @stagePaths 2>$null
     if ($dirty) {
         Write-DotbotCommand "Committing framework file updates..."
