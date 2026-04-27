@@ -1263,14 +1263,14 @@ if ($LASTEXITCODE -ne 0) {
     # then commit framework paths + manifest if anything actually changed.
     New-FrameworkManifest -Root $ProjectDir -Generator 'dotbot init --force' -Paths $frameworkPaths
 
-    # Filter to paths that actually exist on disk — git add chokes on a single
-    # missing pathspec (`fatal: pathspec '...' did not match any files`) and
-    # aborts the entire stage operation, which then surfaces as a silent
-    # "Framework update commit failed" because `Submit-ForceCommit` runs git
-    # commit with nothing staged. Filtering here keeps a single stale entry
-    # in $script:ProtectedPaths from breaking init --force.
+    # Keep paths that are on disk OR tracked in git. Drops stale list entries
+    # (would abort `git add` with a pathspec error), but preserves
+    # tracked-then-deleted paths so migration deletions still get staged.
     $stagePaths = @(($frameworkPaths + @('.bot/.manifest.json')) | Where-Object {
-        Test-Path -LiteralPath (Join-Path $ProjectDir $_)
+        $abs = Join-Path $ProjectDir $_
+        if (Test-Path -LiteralPath $abs) { return $true }
+        $tracked = git -C $ProjectDir ls-files -- $_ 2>$null
+        return [bool]$tracked
     })
     $dirty = git -C $ProjectDir status --porcelain -- @stagePaths 2>$null
     if ($dirty) {

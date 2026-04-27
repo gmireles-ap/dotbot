@@ -369,6 +369,18 @@ if (-not $dotbotInstalled) {
         Assert-PathExists -Name "-Force: .control/settings.json preserved" -Path $dummySettings
         Assert-PathExists -Name "-Force: system files refreshed" -Path (Join-Path $botDir "core/mcp/dotbot-mcp.ps1")
 
+        # Regression guard: init --force must leave a clean .bot/ tree, else
+        # the next workflow run's integrity gate trips with "tampered".
+        Push-Location $testProject
+        try {
+            $dirtyAfterForce = & git status --porcelain -- .bot/ 2>$null
+            Assert-True -Name "-Force: clean working tree (no uncommitted .bot/ changes)" `
+                -Condition ([string]::IsNullOrWhiteSpace(($dirtyAfterForce -join "`n"))) `
+                -Message "init --force left uncommitted .bot/ changes:`n$($dirtyAfterForce -join "`n")"
+        } finally {
+            Pop-Location
+        }
+
         if ($initialInstanceId) {
             $settingsAfterForce = Get-Content $settingsDefault -Raw | ConvertFrom-Json
             Assert-Equal -Name "-Force: preserves existing settings.instance_id" `

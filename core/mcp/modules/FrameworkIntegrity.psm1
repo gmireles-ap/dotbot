@@ -23,6 +23,7 @@
 $script:ProtectedPaths = @(
     '.bot/core',
     '.bot/hooks',
+    '.bot/recipes',
     '.bot/settings/providers',
     '.bot/settings/settings.default.json',
     '.bot/settings/theme.default.json',
