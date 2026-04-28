@@ -376,7 +376,7 @@ if (-not $dotbotInstalled) {
         $integrityModule = Join-Path $dotbotDir "core/mcp/modules/FrameworkIntegrity.psm1"
         if (Test-Path $integrityModule) {
             Import-Module $integrityModule -Force
-            $protectedPaths = @(Get-FrameworkProtectedPaths)
+            $protectedPaths = Get-FrameworkProtectedPaths
             Push-Location $testProject
             try {
                 $dirtyFramework = & git status --porcelain -- @protectedPaths 2>$null
@@ -425,6 +425,26 @@ if (-not $dotbotInstalled) {
                 $relativePathKey = $relativePath -replace '\\', '/'
                 $expectedPath = Join-Path $botDir3 $relativePath
                 Assert-PathExists -Name "--: dotnet overlay file present ($relativePathKey)" -Path $expectedPath
+            }
+
+            # Real $script:ProtectedPaths must fully resolve under a stack-included
+            # install. .bot/recipes is conditionally populated by stacks; on the
+            # default no-stack flavor it correctly stays absent (the staging filter
+            # tolerates that), but a stale entry in $script:ProtectedPaths that no
+            # install path ever creates would surface here.
+            $integrityModule = Join-Path $dotbotDir "core/mcp/modules/FrameworkIntegrity.psm1"
+            if (Test-Path $integrityModule) {
+                Import-Module $integrityModule -Force
+                $stackProtectedPaths = Get-FrameworkProtectedPaths
+                $stackStale = @()
+                foreach ($p in $stackProtectedPaths) {
+                    if (-not (Test-Path -LiteralPath (Join-Path $testProject3 $p))) {
+                        $stackStale += $p
+                    }
+                }
+                Assert-True -Name "--: every protected path resolves under -Stack dotnet" `
+                    -Condition ($stackStale.Count -eq 0) `
+                    -Message "Stale `$script:ProtectedPaths entries (not installed by core+dotnet stack): $($stackStale -join ', ')"
             }
 
         } finally {
